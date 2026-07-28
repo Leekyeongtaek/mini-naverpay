@@ -1,0 +1,5 @@
+description = 'mini-pay-common'
+
+// 라이브러리 모듈 전용 설정 (메인 실행 클래스가 없으므로 실행 jar 생성 비활성화)
+bootJar { enabled = false }
+jar { enabled = true }
