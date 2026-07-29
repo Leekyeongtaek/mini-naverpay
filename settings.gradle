@@ -1,3 +1,5 @@
 rootProject.name = 'mini-naver-pay'
 
 include 'mini-pay-common'
+include 'mini-pay-point'
+include 'mini-pay-event'
