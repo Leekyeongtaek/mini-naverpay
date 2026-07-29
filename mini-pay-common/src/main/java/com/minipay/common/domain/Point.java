@@ -30,4 +30,12 @@ public class Point {
         this.userId = userId;
         this.amount = amount;
     }
+
+    // 포인트 충천
+    public void charge(Long amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("충전 금액은 0보다 커야 합니다.");
+        }
+        this.amount += amount;
+    }
 }
