@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "points")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Point {
+public class Point extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
