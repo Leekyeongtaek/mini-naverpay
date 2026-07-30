@@ -27,8 +27,27 @@ public class PointService {
         point.charge(request.getAmount());
 
         // 포인트 충전 내역 저장
-        PointHistory pointHistory = new PointHistory(request.getUserId(), request.getAmount(), TransactionType.CHARGE);
+        PointHistory pointHistory = new PointHistory(
+                request.getUserId(),
+                request.getAmount(),
+                TransactionType.CHARGE
+        );
         pointHistoryRepository.save(pointHistory);
+
+        return PointResponse.from(point);
+    }
+
+    public PointResponse chargePointWithPessimisticLock(PointChargeRequest request) {
+        Point point = pointRepository.findByUserIdWithPessimisticLock(request.getUserId()).orElseGet(() -> pointRepository.save(new Point(request.getUserId(), 0L)));
+
+        point.charge(request.getAmount());
+
+        PointHistory history = new PointHistory(
+                request.getUserId(),
+                request.getAmount(),
+                TransactionType.CHARGE
+        );
+        pointHistoryRepository.save(history);
 
         return PointResponse.from(point);
     }
