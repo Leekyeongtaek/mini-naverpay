@@ -43,6 +43,8 @@ public class PointServiceConcurrencyTest {
         Long chargeAmount = 100L;
         int threadCount = 100;
 
+        pointRepository.save(new Point(userId, 0L));
+
         // 동시 요청을 위한 비동기 멀티 스레드 및 카운트다운 래치
         ExecutorService executorService = Executors.newFixedThreadPool(32);
         CountDownLatch latch = new CountDownLatch(threadCount);
@@ -68,6 +70,43 @@ public class PointServiceConcurrencyTest {
         System.out.println("==========================================");
         System.out.println("기대 포인트 : " + expectedBalance); // 10000
         System.out.println("실제 충전 포인트 : " + point.getAmount()); // 5600, 6700 등 실행 시마다 달라짐
+        System.out.println("==========================================");
+
+        assertThat(point.getAmount()).isEqualTo(expectedBalance);
+    }
+
+    @Test
+    @DisplayName("비관적 락 적용: 100개의 동시 충전 요청 시 DB X-Lock으로 100% 데이터 정합성 보장")
+    void chargePoint_concurrency_with_pessimistic_lock() throws InterruptedException {
+        // given
+        Long userId = 1L;
+        Long chargeAmount = 100L;
+        int threadCount = 100;
+
+        pointRepository.save(new Point(userId, 0L));
+
+        ExecutorService executorService = Executors.newFixedThreadPool(32);
+        CountDownLatch latch = new CountDownLatch(threadCount);
+
+        // when
+        for (int i = 0; i < threadCount; i++) {
+            executorService.execute(() -> {
+                try {
+                    pointService.chargePointWithPessimisticLock(new PointChargeRequest(userId, chargeAmount));
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+
+        Point point = pointRepository.findByUserId(userId).orElseThrow();
+        Long expectedBalance = chargeAmount * threadCount;
+
+        System.out.println("==========================================");
+        System.out.println("기대 포인트 : " + expectedBalance); // 10000
+        System.out.println("실제 충전 포인트 : " + point.getAmount()); // 10000
         System.out.println("==========================================");
 
         assertThat(point.getAmount()).isEqualTo(expectedBalance);
