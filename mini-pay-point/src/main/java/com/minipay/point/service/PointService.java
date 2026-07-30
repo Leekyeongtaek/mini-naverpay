@@ -51,4 +51,24 @@ public class PointService {
 
         return PointResponse.from(point);
     }
+
+    /**
+     * 낙관적 락 사용
+     * Point 엔티티의 @Version 필드를 기반으로 커밋 시점에 버전 충돌을 감지
+     */
+    public PointResponse chargePointWithOptimisticLock(PointChargeRequest request) {
+        Point point = pointRepository.findByUserId(request.getUserId())
+                .orElseGet(() -> pointRepository.save(new Point(request.getUserId(), 0L)));
+
+        point.charge(request.getAmount());
+
+        PointHistory history = new PointHistory(
+                request.getUserId(),
+                request.getAmount(),
+                TransactionType.CHARGE
+        );
+        pointHistoryRepository.save(history);
+
+        return PointResponse.from(point);
+    }
 }
