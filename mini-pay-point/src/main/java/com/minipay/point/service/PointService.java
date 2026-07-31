@@ -4,13 +4,18 @@ import com.minipay.common.domain.Point;
 import com.minipay.common.domain.PointHistory;
 import com.minipay.common.enums.TransactionType;
 import com.minipay.point.dto.PointChargeRequest;
+import com.minipay.point.dto.PointHistoryResponse;
 import com.minipay.point.dto.PointResponse;
 import com.minipay.point.dto.PointUseRequest;
 import com.minipay.point.repository.PointHistoryRepository;
 import com.minipay.point.repository.PointRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @Transactional
@@ -98,5 +103,27 @@ public class PointService {
         pointHistoryRepository.save(pointHistory);
 
         return PointResponse.from(point);
+    }
+
+    /**
+     * 포인트 거래 내역 조회
+     * @param userId 사용자 ID
+     * @param lastHistoryId 직전 조회한 마지막 historyId
+     * @param size 한 번에 조회할 개수
+     */
+    public List<PointHistoryResponse> getHistories(Long userId, Long lastHistoryId, int size) {
+        Pageable pageable = PageRequest.of(0, size);
+
+        List<PointHistory> histories;
+
+        if (lastHistoryId == null || lastHistoryId <= 0) {
+            histories = pointHistoryRepository.findHistoriesFirstPage(userId, pageable);
+        } else {
+            histories = pointHistoryRepository.findHistoriesNoOffset(userId, lastHistoryId, pageable);
+        }
+
+        return histories.stream()
+                .map(PointHistoryResponse::from)
+                .toList();
     }
 }
