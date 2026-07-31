@@ -2,6 +2,7 @@ package com.minipay.point.service;
 
 import com.minipay.common.domain.Point;
 import com.minipay.point.dto.PointChargeRequest;
+import com.minipay.point.dto.PointUseRequest;
 import com.minipay.point.facade.PointOptimisticLockFacade;
 import com.minipay.point.facade.PointRedissonLockFacade;
 import com.minipay.point.repository.PointHistoryRepository;
@@ -193,5 +194,42 @@ public class PointServiceConcurrencyTest {
         System.out.println("==========================================");
 
         assertThat(point.getAmount()).isEqualTo(expectedBalance);
+    }
+
+    @Test
+    @DisplayName("포인트 차감 동시성 테스트: 10000 포인트에서 100개 스레드가 동시 100 포인트 차감 시 최종 잔여 포인트는 0원")
+    void usePoint_concurrency_with_redisson_lock() throws InterruptedException {
+        // given
+        Long userId = 1L;
+        Long initialAmount = 10000L;
+        Long useAmount = 100L;
+        int threadCount = 100;
+
+        pointRepository.save(new Point(userId, initialAmount));
+
+        ExecutorService executorService = Executors.newFixedThreadPool(32);
+        CountDownLatch latch = new CountDownLatch(threadCount);
+
+        // when
+        for (int i = 0; i < threadCount; i++) {
+            executorService.execute(() -> {
+                try {
+                    pointRedissonLockFacade.usePoint(new PointUseRequest(userId, useAmount));
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+
+        // then
+        Point point = pointRepository.findByUserId(userId).orElseThrow();
+        System.out.println("==========================================");
+        System.out.println("초기 금액 : " + initialAmount + "원");
+        System.out.println("최종 남은 잔액 : " + point.getAmount() + "원");
+        System.out.println("==========================================");
+
+        assertThat(point.getAmount()).isEqualTo(0L);
     }
 }
