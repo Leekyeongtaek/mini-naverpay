@@ -2,6 +2,7 @@ package com.minipay.point.facade;
 
 import com.minipay.point.dto.PointChargeRequest;
 import com.minipay.point.dto.PointResponse;
+import com.minipay.point.dto.PointUseRequest;
 import com.minipay.point.service.PointService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,18 +21,11 @@ public class PointRedissonLockFacade {
     private final PointService pointService;
 
     public PointResponse chargePoint(PointChargeRequest request) {
-
         String lockKey = "point:lock:" + request.getUserId();
         RLock lock = redissonClient.getLock(lockKey);
 
         try {
-            boolean available = lock.tryLock(10, 2, TimeUnit.SECONDS);
-
-            if (!available) {
-                log.warn("Redisson 락 획득 실패 - lockKey: {}", lockKey);
-                throw new IllegalStateException("동시 요청이 많아 처리할 수 없습니다. 잠시 후 다시 시도해주세요.");
-            }
-
+            validateLockAvailable(lock, lockKey);
             return pointService.chargePoint(request);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -40,6 +34,31 @@ public class PointRedissonLockFacade {
             if (lock.isHeldByCurrentThread()) {
                 lock.unlock();
             }
+        }
+    }
+
+    public PointResponse usePoint(PointUseRequest request) {
+        String lockKey = "point:lock:" + request.getUserId();
+        RLock lock = redissonClient.getLock(lockKey);
+
+        try {
+            validateLockAvailable(lock, lockKey);
+            return pointService.usePoint(request);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("스레드 인터럽트 발생", e);
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
+    }
+
+    private void validateLockAvailable(RLock lock, String lockKey) throws InterruptedException {
+        boolean available = lock.tryLock(10, 2, TimeUnit.SECONDS);
+        if (!available) {
+            log.warn("Redisson 락 획득 실패 - lockKey: {}", lockKey);
+            throw new IllegalStateException("동시 요청이 많아 처리할 수 없습니다. 잠시 후 다시 시도해주세요.");
         }
     }
 }

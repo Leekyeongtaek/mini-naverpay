@@ -5,6 +5,7 @@ import com.minipay.common.domain.PointHistory;
 import com.minipay.common.enums.TransactionType;
 import com.minipay.point.dto.PointChargeRequest;
 import com.minipay.point.dto.PointResponse;
+import com.minipay.point.dto.PointUseRequest;
 import com.minipay.point.repository.PointHistoryRepository;
 import com.minipay.point.repository.PointRepository;
 import jakarta.transaction.Transactional;
@@ -68,6 +69,33 @@ public class PointService {
                 TransactionType.CHARGE
         );
         pointHistoryRepository.save(history);
+
+        return PointResponse.from(point);
+    }
+
+    /**
+     * 포인트 잔액 조회
+     */
+    public PointResponse getBalance(Long userId) {
+        Point point = pointRepository.findByUserId(userId)
+                .orElseGet(() -> new Point(userId, 0L));
+        return PointResponse.from(point);
+    }
+
+    /**
+     * 포인트 사용/차감
+     */
+    public PointResponse usePoint(PointUseRequest request) {
+        Point point = pointRepository.findByUserId(request.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+
+        point.use(request.getAmount());
+
+        PointHistory pointHistory = new PointHistory(
+                request.getUserId(),
+                request.getAmount(),
+                TransactionType.USE);
+        pointHistoryRepository.save(pointHistory);
 
         return PointResponse.from(point);
     }

@@ -34,8 +34,19 @@ public class Point extends BaseTimeEntity {
     // 포인트 충천
     public void charge(Long amount) {
         if (amount <= 0) {
-            throw new IllegalArgumentException("충전 금액은 0보다 커야 합니다.");
+            throw new IllegalArgumentException("충전 포인트는 0보다 커야 합니다.");
         }
         this.amount += amount;
+    }
+
+    // 포인트 차감
+    public void use(Long amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("사용 포인트는 0보다 커야 합니다.");
+        }
+        if(this.amount < amount){
+            throw new IllegalStateException("잔여 포인트가 부족합니다.");
+        }
+        this.amount -= amount;
     }
 }
